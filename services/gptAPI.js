@@ -37,7 +37,7 @@ export const analyzeImageWithAI21 = async (imageUri, visionLabels, prompt) => {
     const response = await axios.post(
       ai21ApiUrl,
       {
-        model: "jamba-1.5-mini",
+        model: "jamba-mini",
         messages: [
           {
             role: "system",

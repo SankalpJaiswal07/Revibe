@@ -141,11 +141,35 @@ const RecycleItemScreen = ({ navigation }) => {
       const base64Image = await convertImageToBase64(imageUri);
       const visionData = await analyzeImageWithVision(base64Image);
 
-      // Step 2: Check if visionData is an array and map over it
+      // Step 2: Validate visionData structure and extract labels
+      let visionLabels = "";
 
-      const visionLabels = visionData.labelAnnotations
-        .map((label) => label.description)
-        .join(", ");
+      if (
+        visionData &&
+        visionData.labelAnnotations &&
+        Array.isArray(visionData.labelAnnotations)
+      ) {
+        if (visionData.labelAnnotations.length > 0) {
+          visionLabels = visionData.labelAnnotations
+            .map((label) => label?.description || "")
+            .filter((description) => description.trim() !== "")
+            .join(", ");
+        } else {
+          // No labels found - image might be unclear
+          Alert.alert(
+            "Image Not Clear",
+            "We couldn't identify any objects in your image. Please upload a clearer picture or try again."
+          );
+          return;
+        }
+      } else {
+        // Vision API failed or returned invalid data
+        Alert.alert(
+          "Analysis Failed",
+          "Unable to process your image. Please upload a clearer picture or try again later."
+        );
+        return;
+      }
 
       // Step 3: Send Vision API result to GPT API for further analysis
 
@@ -158,7 +182,32 @@ const RecycleItemScreen = ({ navigation }) => {
       // Step 4: Navigate to ItemDetail screen with image and result
       navigation.navigate("ItemDetail", { imageUri, result: gptResult });
     } catch (error) {
-      Alert.alert("Analysis Failed", error.message);
+      console.error("Image analysis error:", error);
+
+      // User-friendly error messages
+      let errorTitle = "Analysis Failed";
+      let errorMessage =
+        "Something went wrong. Please upload a clearer picture or try again later.";
+
+      if (
+        error.message?.includes("network") ||
+        error.message?.includes("fetch")
+      ) {
+        errorMessage =
+          "Connection problem. Please check your internet and try again.";
+      } else if (
+        error.message?.includes("base64") ||
+        error.message?.includes("convert")
+      ) {
+        errorMessage =
+          "Unable to process your image. Please try uploading a different photo.";
+      } else if (error.message?.toLowerCase().includes("map")) {
+        errorTitle = "Image Not Clear";
+        errorMessage =
+          "We couldn't analyze your image properly. Please upload a clearer picture or try again later.";
+      }
+
+      Alert.alert(errorTitle, errorMessage);
     } finally {
       setLoading(false);
     }
